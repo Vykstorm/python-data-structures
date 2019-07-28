@@ -1,9 +1,7 @@
 
 
 from typing import *
-from itertools import chain, combinations, filterfalse, starmap
-from functools import partial
-from operator import contains, le
+from itertools import chain, combinations
 
 
 T_co = TypeVar('T')
