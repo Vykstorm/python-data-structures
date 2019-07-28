@@ -102,10 +102,98 @@ class PowerSet(AbstractSet[T_co], Hashable):
         return self._items >= other._items if isinstance(other, PowerSet) else super().__ge__(other)
 
     def isdisjoint(self, other):
-        return self._items.isdisjoint(other._items) if isinstance(other, PowerSet) else super().isdisjoint(other)
+        return True if isinstance(other, PowerSet) else super().isdisjoint(other)
 
     def __str__(self):
         return '{' + ', '.join(map(lambda s: str(set(s)), self)) + '}'
 
     def __repr__(self):
         return str(self)
+
+
+
+if __name__ == '__main__':
+    # Run this module as script to execute the unitary test
+
+    from itertools import product
+    import unittest
+    from unittest import TestCase
+    from random import sample
+
+    class TestPowerSet(TestCase):
+        def test_iterator(self):
+            # set(PowerSet()) -> { {} }
+            self.assertEqual(set(PowerSet()), set([frozenset()]))
+
+            # set(PowerSet(1)) -> { {}, {0} }
+            self.assertEqual(set(PowerSet(1)), { frozenset(), frozenset([0]) })
+
+            # set(PowerSet(2)) -> { {}, {0}, {1}, {0, 1} }
+            self.assertEqual(set(PowerSet(2)),
+                set(map(frozenset, [set(), {0}, {1}, {0, 1}])))
+
+            # set(PowerSet(3)) -> { {}, {0}, {1}, {2}, {0, 1}, {0, 2}, {1, 2}, {0, 1, 2} }
+            self.assertEqual(set(PowerSet(3)),
+                set(map(frozenset, [set(), {0}, {1}, {2}, {0, 1}, {1, 2}, {0, 2}, {0, 1, 2}])))
+
+
+        def test_constructor(self):
+            # PowerSet(x) <=> PowerSet(range(0, x))  where x is a number > 0
+            for k in range(1, 6):
+                self.assertEqual(set(PowerSet(k)), set(PowerSet(range(0, k))))
+
+            # PowerSet(X) <=> PowerSet(frozenset(X)) where X is a iterable
+            for k in range(1, 6):
+                self.assertEqual(set(PowerSet(list(range(k, 6)) * 2)), set(PowerSet(range(k, 6))))
+
+
+        def test_length(self):
+            # len(PowerSet()) == 1
+            self.assertEqual(len(PowerSet()), 1)
+
+            # len(PowerSet(X)) == len(list(PowerSet(X)))
+            for k in range(1, 6):
+                self.assertEqual(len(PowerSet()), len(list(PowerSet())))
+
+
+        def test_contains(self):
+            # for all item y in list(PowerSet(X)) if and only if y in PowerSet(x) == True
+            for k in range(1, 6):
+                s = PowerSet(k)
+                for y in s:
+                    self.assertIn(y, s)
+                    if len(y) > 0:
+                        self.assertNotIn(set(map(lambda x: x + k, y)), s)
+
+
+        def test_hash(self):
+            # hash(PowerSet(X)) = hash(PowerSet(Y)) <=> hash(tuple(PowerSet(X))) = hash(tuple(PowerSet(Y)))
+            for i, j in product(range(1, 6), range(1, 6)):
+                s, t = PowerSet(i), PowerSet(j)
+                self.assertFalse((hash(s) == hash(t)) ^ (hash(tuple(s)) == hash(tuple(t))))
+
+
+        def test_comparisons(self):
+            # PowerSet(X) == PowerSet(Y) <=> hash(PowerSet(X)) == hash(PowerSet(Y))
+            # PowerSet(X) < PowerSet(Y) <=> set(PowerSet(X)) < set(PowerSet(Y))
+            # PowerSet(X) <= PowerSet(Y) <=> set(PowerSet(X)) <= set(PowerSet(Y))
+            # PowerSet(X) > PowerSet(Y) <=> set(PowerSet(X)) > set(PowerSet(Y))
+            # PowerSet(X) >= PowerSet(Y) <=> set(PowerSet(X)) >= set(PowerSet(Y))
+
+            self.assertEqual(PowerSet(), PowerSet())
+            self.assertFalse(PowerSet() < PowerSet())
+
+            for i, j in product(range(1, 6), range(1, 6)):
+                s, t = PowerSet(i), PowerSet(j)
+                self.assertFalse((hash(s) == hash(t)) ^ (s == t))
+                self.assertFalse((set(s) < set(t)) ^ (s < t))
+                self.assertFalse((set(s) <= set(t)) ^ (s <= t))
+                self.assertFalse((set(s) > set(t)) ^ (s > t))
+                self.assertFalse((set(s) >= set(t)) ^ (s >= t))
+
+        def test_disjoint(self):
+            # PowerSet(X).isdisjoint(PowerSet(Y)) = True
+            for i, j in product(range(1, 6), range(1, 6)):
+                self.assertTrue(PowerSet(i).isdisjoint(PowerSet(j)))
+
+    unittest.main()
