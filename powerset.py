@@ -92,7 +92,7 @@ class PowerSet(AbstractSet[T_co], Hashable):
         '''
         Returns the hash for this power set.
         '''
-        return hash((self.__class__, self._items))
+        return hash((PowerSet, self._items))
 
 
     def random_samples(self, n: int=None, r: Union[int, Iterable[int]]=None):
