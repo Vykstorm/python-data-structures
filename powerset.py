@@ -2,7 +2,7 @@
 
 from typing import *
 from itertools import chain, combinations, count, accumulate
-from functools import partial
+from functools import partial, lru_cache
 from operator import contains
 import random
 from math import factorial
@@ -80,6 +80,7 @@ class PowerSet(AbstractSet[T_co], Hashable):
             map(partial(combinations, self._items), range(0, len(self._items)+1))
         ))
 
+    @lru_cache(maxsize=1)
     def __len__(self):
         '''
         Returns the cardinality of this power set.
@@ -88,6 +89,7 @@ class PowerSet(AbstractSet[T_co], Hashable):
         return 2**len(self._items)
 
 
+    @lru_cache(maxsize=1)
     def __hash__(self):
         '''
         Returns the hash for this power set.
