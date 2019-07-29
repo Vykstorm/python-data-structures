@@ -105,7 +105,7 @@ class PowerSet(AbstractSet[T_co], Hashable):
         return hash((PowerSet, self._items))
 
 
-    def random_samples(self, n: int=None, r: Union[int, Iterable[int]]=None):
+    def random_samples(self, n: int=None, r: Union[int, Iterable[int]]=None) -> Iterator[AbstractSet[T_co]]:
         '''
         Creates an iterator that returns up to n random subsets of size r from this powerset (the same
         subset can be returned more than 1 time).
@@ -164,7 +164,7 @@ class PowerSet(AbstractSet[T_co], Hashable):
 
 
 
-    def random_sample(self, r=None):
+    def random_sample(self, r=None) -> AbstractSet[T_co]:
         '''
         Its equivalent to next(self.random(n=1, r)).
         '''
