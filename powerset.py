@@ -32,10 +32,10 @@ class PowerSet(AbstractSet[T_co], Hashable):
         '''
         :param x: Its a iterable with the elements to build the power set from (all items must be
         hashable and duplicates will be removed)
-        It can also be an integer number greater than 0 or None (which is the default
+        It can also be an integer number greater or equal than 0 or None (which is the default
         value).
         If x is a number, PowerSet(x) is equivalent to PowerSet(range(0, x))
-        If x is None, PowerSet(x) will only include the empty set {}
+        If x is None or an empty iterable, PowerSet(x) will only include the empty set {}
 
         e.g:
         list(PowerSet([a, b, c])) -> [{}, {a,}, {b,}, {c,}, {a, b}, {a, c}, {b, c}, {a, b, c}]
@@ -45,13 +45,13 @@ class PowerSet(AbstractSet[T_co], Hashable):
         Note that PowerSet([1, 2]) and PowerSet([2, 1]) are equivalent:
         For any iterable X, PowerSet(X) is equivalent to PowerSet(set(X))
         '''
-        if x is not None and not isinstance(x, Iterable) and not (isinstance(x, int) and x > 0):
-            raise TypeError('Argument must be an iterable, a number greater than zero or None')
+        if x is not None and not isinstance(x, Iterable) and not (isinstance(x, int) and x >= 0):
+            raise TypeError('Argument must be an iterable, a number greater or equal than zero or None')
 
         if isinstance(x, Iterable):
             x = frozenset(x)
         else:
-            x = frozenset(range(0, x)) if isinstance(x, int) else frozenset()
+            x = frozenset(range(0, x)) if isinstance(x, int) and x > 0 else frozenset()
 
         self._items = x
 
@@ -235,7 +235,7 @@ if __name__ == '__main__':
 
         def test_constructor(self):
             # PowerSet(x) <=> PowerSet(range(0, x))  where x is a number > 0
-            for k in range(1, 6):
+            for k in range(0, 6):
                 self.assertEqual(set(PowerSet(k)), set(PowerSet(range(0, k))))
 
             # PowerSet(X) <=> PowerSet(frozenset(X)) where X is a iterable
