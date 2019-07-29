@@ -5,11 +5,21 @@ from itertools import chain, combinations, count, accumulate
 from functools import partial, lru_cache
 from operator import contains
 import random
-from math import factorial
+from math import floor
 
 # Helper methods
+@lru_cache(maxsize=256)
 def binomial(n, k):
-    return factorial(n) // (factorial(k) * factorial(n - k))
+    assert isinstance(n, int) and isinstance(k, int)
+    assert k >= 0 and k <= n
+
+    if k == 0 or k == n:
+        return 1
+
+    if k > floor(n // 2):
+        return binomial(n, n - k)
+
+    return binomial(n - 1, k - 1) + binomial(n - 1, k)
 
 
 T_co = TypeVar('T')
@@ -80,7 +90,6 @@ class PowerSet(AbstractSet[T_co], Hashable):
             map(partial(combinations, self._items), range(0, len(self._items)+1))
         ))
 
-    @lru_cache(maxsize=1)
     def __len__(self):
         '''
         Returns the cardinality of this power set.
@@ -89,7 +98,6 @@ class PowerSet(AbstractSet[T_co], Hashable):
         return 2**len(self._items)
 
 
-    @lru_cache(maxsize=1)
     def __hash__(self):
         '''
         Returns the hash for this power set.
@@ -189,6 +197,8 @@ class PowerSet(AbstractSet[T_co], Hashable):
 
 
 
+
+
 if __name__ == '__main__':
     # Run this module as script to execute the unitary test
 
@@ -282,6 +292,28 @@ if __name__ == '__main__':
             for i, j in product(range(1, 6), range(1, 6)):
                 self.assertTrue(PowerSet(i).isdisjoint(PowerSet(j)))
 
+
+        def test_binomial(self):
+            # binomial(n, 0) = 1, binomial(n, n) = 1
+            for n in range(0, 15):
+                self.assertEqual(binomial(n, 0), 1)
+                self.assertEqual(binomial(n, n), 1)
+
+            # binomial(n, k) = binomial(n, n - k)
+            for n in range(0, 15):
+                for k in range(0, n):
+                    self.assertEqual(binomial(n, k), binomial(n, n - k))
+
+            # binomial(n, k) = (n * binomial(n-1, k-1)) // k with k > 0
+            for n in range(1, 15):
+                for k in range(1, n):
+                    self.assertEqual(binomial(n, k), n * binomial(n-1, k-1) // k)
+
+            # for n, k, 1 <= k <= n, binomial(n+1, k) = binomial(n, k-1) + binomial(n, k)
+            for n in range(1, 15):
+                for k in range(1, n):
+                    self.assertEqual(binomial(n+1, k), binomial(n, k-1) + binomial(n, k))
+
         def test_random_samples(self):
             try:
                 import numpy as np
@@ -306,7 +338,7 @@ if __name__ == '__main__':
                 # if X = list(map(len, PowerSet(k).random_samples(n))) with n > 30
                 # X ~ B(k/2, 0.5) ~ N(k / 2, k / 4)
 
-                n = 2000
+                n = 5000
                 for k in range(1, 6):
                     X = np.array(list(map(len, PowerSet(k).random_samples(n))))
 
