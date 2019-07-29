@@ -1,7 +1,15 @@
 
 
 from typing import *
-from itertools import chain, combinations
+from itertools import chain, combinations, count, accumulate
+from functools import partial
+from operator import contains
+import random
+from math import factorial
+
+# Helper methods
+def binomial(n, k):
+    return factorial(n) // (factorial(k) * factorial(n - k))
 
 
 T_co = TypeVar('T')
@@ -68,8 +76,9 @@ class PowerSet(AbstractSet[T_co], Hashable):
 
         Finally, the last item will be {x1, x2, ..., xn}
         '''
-        return map(frozenset, chain.from_iterable(combinations(self._items, r) for r in range(len(self._items)+1)))
-
+        return map(frozenset, chain.from_iterable(
+            map(partial(combinations, self._items), range(0, len(self._items)+1))
+        ))
 
     def __len__(self):
         '''
@@ -84,6 +93,72 @@ class PowerSet(AbstractSet[T_co], Hashable):
         Returns the hash for this power set.
         '''
         return hash((self.__class__, self._items))
+
+
+    def random_samples(self, n: int=None, r: Union[int, Iterable[int]]=None):
+        '''
+        Creates an iterator that returns up to n random subsets of size r from this powerset (the same
+        subset can be returned more than 1 time).
+
+        :param n: Indicates the number of subsets to be returned.
+            If not specified, the iterator will return an infinite number of subsets
+        :param r: If specified, only returns subsets of size r if it is an integer number.
+            It can also be an iterable of integer values. In that case, returns subsets with
+            sizes equal to one of the items indicated
+
+        e.g:
+        iter(PowerSet(3).random_samples(r=1)) -> {0}, {1}, {0}, {2}, ...
+        iter(PowerSet(3).random_samples(r=[1, 3])) -> {0}, {1}, {0, 1, 2}, {2}, {0}, ...
+
+        list(PowerSet(3).random_samples(n=2, r=1)) -> [{1}, {0}]
+        list(PowerSet().random_samples(n=2)) -> [{}, {}]
+        '''
+        if not (n is None or (isinstance(n, int) and n >= 0)):
+            raise ValueError('Invalid value for argument n. Must be a number >= 0')
+
+        m = len(self._items)
+        if r is not None and not (isinstance(r, int) and r in range(0, m+1)) and\
+            not (isinstance(r, Iterable) and all(map(partial(contains, range(0, m+1)), r))):
+            raise ValueError('Invalid value for argument r')
+
+        if r is None:
+            r = range(0, m+1)
+        elif isinstance(r, Iterable):
+            r = frozenset(r)
+
+        return self._random_samples(n, r)
+
+
+    def _random_samples(self, n, r):
+        m = len(self._items)
+        n = count() if n is None else range(0, n)
+
+        if isinstance(r, int):
+            items = tuple(self._items)
+            for x in n:
+                yield frozenset(map(items.__getitem__, sorted(random.sample(range(0, m), r))))
+        else:
+            r = tuple(r)
+            if len(r) == 0:
+                return
+
+            pool = tuple(map(partial(self._random_samples, None), r))
+            sc = tuple(accumulate(map(partial(binomial, m), r)))
+
+            for x in n:
+                v = random.randrange(0, sc[-1])
+                for k in range(0, len(r)):
+                    if v < sc[k]:
+                        yield next(pool[k])
+                        break
+
+
+
+    def random_sample(self, r=None):
+        '''
+        Its equivalent to next(self.random(n=1, r)).
+        '''
+        return next(self.random_samples(1, r))
 
 
     def __eq__(self, other):
@@ -115,10 +190,19 @@ class PowerSet(AbstractSet[T_co], Hashable):
 if __name__ == '__main__':
     # Run this module as script to execute the unitary test
 
-    from itertools import product
+    from itertools import product, repeat, starmap
+    from operator import eq
     import unittest
     from unittest import TestCase
     from random import sample
+
+    # Random distribution tests (only run if numpy and scipy are avaliable)
+    try:
+        import numpy
+        import scipy
+    except:
+        pass
+
 
     class TestPowerSet(TestCase):
         def test_iterator(self):
@@ -195,5 +279,44 @@ if __name__ == '__main__':
             # PowerSet(X).isdisjoint(PowerSet(Y)) = True
             for i, j in product(range(1, 6), range(1, 6)):
                 self.assertTrue(PowerSet(i).isdisjoint(PowerSet(j)))
+
+        def test_random_samples(self):
+            try:
+                import numpy as np
+                from scipy.stats import shapiro, norm
+
+                # len(list(PowerSet(X).random_samples(n, r))) == n
+                # len(s) == r for any s in PowerSet(X).random_samples(n, r)
+                for i in range(1, 6):
+                    s = PowerSet(i)
+                    for n, r in product(range(0, 20), range(0, i+1)):
+                        samples = list(s.random_samples(n, r))
+                        self.assertEqual(len(samples), n)
+                        self.assertTrue(all(starmap(eq, zip(map(len, samples), repeat(r)))))
+
+                # len(list(PowerSet(X).random_samples(n, []))) == 0
+                for k in range(1, 6):
+                    self.assertEqual(len(list(PowerSet(k).random_samples(r=[]))), 0)
+
+                # number of samples of size r in PowerSet(X).random_samples(n)
+                # is binomial(n, r) / 2**len(PowerSet(X)) on average
+
+                # if X = list(map(len, PowerSet(k).random_samples(n))) with n > 30
+                # X ~ B(k/2, 0.5) ~ N(k / 2, k / 4)
+
+                n = 2000
+                for k in range(1, 6):
+                    X = np.array(list(map(len, PowerSet(k).random_samples(n))))
+
+                    # X is normally distributed
+                    self.assertLessEqual(shapiro(X)[1], 0.05)
+
+                    # X ~ N(k / 2, k / 4)
+                    s = k / (2 * np.sqrt(n))
+                    z = (np.mean(X) - k / 2) / s
+                    p = 2 * (1 - norm.cdf(np.abs(z)))
+                    self.assertGreater(p, 0.05)
+            except ModuleNotFoundError:
+                pass
 
     unittest.main()
