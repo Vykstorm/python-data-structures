@@ -3,7 +3,7 @@
 from typing import *
 from itertools import chain, combinations, count, accumulate
 from functools import partial, lru_cache
-from operator import contains
+from operator import contains, ge
 import random
 from math import floor
 
@@ -24,7 +24,7 @@ def binomial(n, k):
 
 
 T_co = TypeVar('T')
-class PowerSet(AbstractSet[T_co], Hashable):
+class PowerSet(AbstractSet[T_co], Sequence[T_co], Hashable):
     '''
     Represents a set which contains all the subsets of a given set.
     '''
@@ -71,32 +71,87 @@ class PowerSet(AbstractSet[T_co], Hashable):
         return s <= self._items
 
 
-    def __iter__(self) -> Iterator[AbstractSet[T_co]]:
-        '''
-        Iterates over the power set, returning all its items as frozenset objects.
-        If the power set was created like PowerSet([x1, x2, ..., xn]) and assuming
-        that x1 != x2 != ... != xn:
-
-        The first item will be ()
-        After that, subsets of size 1 will be returned:
-        {x1,}, {x2,}, ..., {xn,}
-
-        Then, combinations of size 2 of the items x0, x1, ..., xn with no repetitions:
-        {x1, x2}, {x1, x3}, ..., {xn-1, xn}
-        The next following subsets are combinations of size 3, size 4, ..., size n-1, also with no repetitions.
-
-        Finally, the last item will be {x1, x2, ..., xn}
-        '''
-        return map(frozenset, chain.from_iterable(
-            map(partial(combinations, self._items), range(0, len(self._items)+1))
-        ))
-
     def __len__(self):
         '''
         Returns the cardinality of this power set.
         The power set of a set with n elements will have 2**n cardinality
         '''
         return 2**len(self._items)
+
+
+    def __iter__(self) -> Iterator[AbstractSet[T_co]]:
+        '''
+        Iterates over the power set, returning all its items as frozenset objects.
+        If X=PowerSet(...), iter(X) will be equivalent to iter([X[k] for k in range(len(X))])
+        '''
+        return map(frozenset, chain.from_iterable(
+            map(partial(combinations, self._items), range(0, len(self._items)+1))
+        ))
+
+
+    def __reversed__(self) -> Iterator[AbstractSet[T_co]]:
+        '''
+        Its the same as __iter__ but the iterator is reversed.
+        If X=PowerSet(...), iter(X) is equivalent to iter([X[k] for k in reversed(range(len(X)))])
+        '''
+        return map(frozenset, chain.from_iterable(
+            map(partial(combinations, self._items), reversed(range(0, len(self._items)+1)))
+        ))
+
+
+    def __getitem__(self, index) -> AbstractSet[T_co]:
+        '''
+        PowerSet(X) associates an index in the range 0 to 2**len(X)-1 to each subset of X.
+        This method returns the subset associated to the given index or raises IndexError if
+        the index is out of bounds.
+
+        Note: To iterate over the power set, use __iter__ instead. This method is intended
+        to provide an efficient way to access a particular subset of the power set without iterating
+        over all of them using an integer index.
+        '''
+        if not isinstance(index, int):
+            raise TypeError('Index must be an integer value')
+
+        # Parse negative indices
+        if index < 0:
+            index += len(self)
+
+        if index not in range(len(self)):
+            raise IndexError('Index out of range')
+
+        if index == 0 or index == len(self) - 1:
+            return frozenset() if index == 0 else self._items.copy()
+
+        items = tuple(self._items)
+        m = len(items)
+        r, k = 1, index - 1
+
+        b = binomial(m, 1)
+        while k >= b:
+            r += 1
+            k -= b
+            b = binomial(m, r)
+
+        s, j = [], 0
+        while r > 0:
+            b = binomial(m-j-1, r-1)
+            if k < b:
+                r -= 1
+                s.append(items[j])
+            else:
+                k -= b
+            j += 1
+
+        return frozenset(s)
+
+
+
+    def index(self, item) -> int:
+        #TODO
+        pass
+
+    def count(self, item) -> int:
+        return 1 if item in self else 0
 
 
     def __hash__(self):
@@ -315,6 +370,7 @@ if __name__ == '__main__':
                 for k in range(1, n):
                     self.assertEqual(binomial(n+1, k), binomial(n, k-1) + binomial(n, k))
 
+
         def test_random_samples(self):
             try:
                 import numpy as np
@@ -339,8 +395,8 @@ if __name__ == '__main__':
                 # if X = list(map(len, PowerSet(k).random_samples(n))) with n > 30
                 # X ~ B(k/2, 0.5) ~ N(k / 2, k / 4)
 
-                n = 5000
-                for k in range(1, 6):
+                n = 1000
+                for k in range(1, 5):
                     X = np.array(list(map(len, PowerSet(k).random_samples(n))))
 
                     # X is normally distributed
@@ -350,8 +406,17 @@ if __name__ == '__main__':
                     s = k / (2 * np.sqrt(n))
                     z = (np.mean(X) - k / 2) / s
                     p = 2 * (1 - norm.cdf(np.abs(z)))
-                    self.assertGreater(p, 0.05)
+                    self.assertGreater(p, 0.1)
             except ModuleNotFoundError:
+                # Modules not avaliable for this test
                 pass
+
+        def test_getitem(self):
+            # PowerSet(X)[i] == list(PowerSet(X))[i] for 0 <= i < 2**len(X)
+            for k in range(0, 9):
+                s = PowerSet(k)
+                self.assertTrue(all(starmap(eq, zip(map(s.__getitem__, range(len(s))), s))))
+
+
 
     unittest.main()
