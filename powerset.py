@@ -2,8 +2,8 @@
 
 from typing import *
 from itertools import chain, combinations, count, accumulate
-from functools import partial, lru_cache
-from operator import contains, ge
+from functools import partial, lru_cache, reduce
+from operator import contains, ge, add
 import random
 from math import floor
 
@@ -57,18 +57,18 @@ class PowerSet(AbstractSet[T_co], Sequence[T_co], Hashable):
         self._items = x
 
 
-    def __contains__(self, s: Iterable[T_co]):
+    def __contains__(self, value: Iterable[T_co]):
         '''
-        Checks if the given item s is inside of this power set.
+        Checks if the given value is a subset inside of this power set.
         '''
-        if not isinstance(s, Iterable):
+        if not isinstance(value, Iterable):
             return False
         try:
-            s = frozenset(s)
+            value = frozenset(value)
         except:
             return False
 
-        return s <= self._items
+        return value <= self._items
 
 
     def __len__(self):
@@ -119,8 +119,10 @@ class PowerSet(AbstractSet[T_co], Sequence[T_co], Hashable):
         if index not in range(len(self)):
             raise IndexError('Index out of range')
 
-        if index == 0 or index == len(self) - 1:
-            return frozenset() if index == 0 else self._items.copy()
+        if index == 0:
+            return frozenset()
+        if index == len(self) - 1:
+            return self._items.copy()
 
         items = tuple(self._items)
         m = len(items)
@@ -145,13 +147,42 @@ class PowerSet(AbstractSet[T_co], Sequence[T_co], Hashable):
         return frozenset(s)
 
 
+    def index(self, value) -> int:
+        '''
+        Returns an integer number k, such that self.__getitem__(k) == value
+        Raises ValueError exception if value is not a subset of this power set
+        '''
+        if value not in self:
+            raise ValueError(f"{value} is not inside the power set")
 
-    def index(self, item) -> int:
-        #TODO
-        pass
+        value, items = frozenset(value), tuple(self._items)
+        n, m = len(value), len(items)
 
-    def count(self, item) -> int:
-        return 1 if item in self else 0
+        if n == 0:
+            return 0
+        if n == m:
+            return len(self) - 1
+
+        k = reduce(add, map(partial(binomial, m), range(0, n)))
+        r, j = n, 0
+
+        while r > 0:
+            b = binomial(m-j-1, r-1)
+            if items[j] in value:
+                r -= 1
+            else:
+                k += b
+            j += 1
+
+        return k
+
+
+    def count(self, value) -> int:
+        '''
+        This method counts the number of times the given value appears in this power set.
+        Returns trivially 1 if the item is a subset of this power set, otherwise returns 0
+        '''
+        return 1 if value in self else 0
 
 
     def __hash__(self):
@@ -411,12 +442,19 @@ if __name__ == '__main__':
                 # Modules not avaliable for this test
                 pass
 
+
         def test_getitem(self):
             # PowerSet(X)[i] == list(PowerSet(X))[i] for 0 <= i < 2**len(X)
             for k in range(0, 9):
                 s = PowerSet(k)
                 self.assertTrue(all(starmap(eq, zip(map(s.__getitem__, range(len(s))), s))))
 
+
+        def test_index(self):
+            # PowerSet(X).index(PowerSet(x)[i]) == i for 0 <= i < 2**len(X)
+            for k in range(0, 9):
+                s = PowerSet(k)
+                self.assertTrue(starmap(eq, zip(map(s.index, s), count())))
 
 
     unittest.main()
