@@ -8,7 +8,7 @@ import random
 from math import floor
 
 # Helper methods
-@lru_cache(maxsize=256)
+@lru_cache(maxsize=512)
 def binomial(n, k):
     # Returns the binomial coefficient of n over k
     assert isinstance(n, int) and isinstance(k, int)
