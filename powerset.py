@@ -1,7 +1,7 @@
 
 
 from typing import *
-from itertools import chain, combinations, count, accumulate
+from itertools import chain, combinations, count, accumulate, islice
 from functools import partial, lru_cache, reduce
 from operator import contains, ge, add
 import random
@@ -277,7 +277,17 @@ class PowerSet(AbstractSet[T_co], Sequence[T_co], Hashable):
         return True if isinstance(other, PowerSet) else super().isdisjoint(other)
 
     def __str__(self):
-        return '{' + ', '.join(map(lambda s: str(set(s)), self)) + '}'
+        print_item = lambda item: str(set(item))
+        if len(self) < 64:
+            it = map(print_item, iter(self))
+        else:
+            it = chain(
+                    map(print_item, islice(self, 48)),
+                    iter(['...']),
+                    map(print_item, reversed(tuple(islice(reversed(self), 16))))
+                )
+        return '{' + ', '.join(it) + '}'
+
 
     def __repr__(self):
         return str(self)
