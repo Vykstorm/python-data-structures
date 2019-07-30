@@ -314,6 +314,16 @@ if __name__ == '__main__':
 
 
     class TestPowerSet(TestCase):
+
+        def test_abc(self):
+            # Test that PowerSet implements the interfaces Sequence and AbstractSet
+            self.assertTrue(issubclass(PowerSet, Sequence))
+            self.assertTrue(issubclass(PowerSet, AbstractSet))
+
+            # PowerSet defines all abstract methods
+            PowerSet()
+
+
         def test_iterator(self):
             # set(PowerSet()) -> { {} }
             self.assertEqual(set(PowerSet()), set([frozenset()]))
